@@ -1,0 +1,10 @@
+{
+    "title": "Login fails with 500 error when email contains plus sign",
+    "description": "Users with email addresses containing a '+' character (e.g., user+tag@example.com) receive a 500 Internal Server Error when attempting to log in. The error originates from the email validation regex in the auth module.",
+    "steps_to_reproduce": "1. Navigate to /login\n2. Enter email: test+tag@example.com\n3. Enter any password\n4. Click 'Sign In'\n5. Observe 500 error page",
+    "error_logs": "Traceback (most recent call last):\n  File \"/app/auth/validators.py\", line 42, in validate_email\n    match = EMAIL_REGEX.match(email)\nTypeError: expected string or bytes-like object, got 'NoneType'\n\nDuring handling of the above exception, another exception occurred:\n  File \"/app/auth/views.py\", line 87, in login_view\n    validated = validate_email(request.POST['email'])\n  ...\ndjango.core.exceptions.ValidationError: Invalid email format",
+    "affected_files": [
+        "auth/validators.py",
+        "auth/views.py"
+    ]
+}

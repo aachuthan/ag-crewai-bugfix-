@@ -1,0 +1,33 @@
+[project]
+name = "ag-crewai-bugfix"
+version = "0.1.0"
+description = "AI Development Team for Repository Bug Fixing using CrewAI + Claude Code"
+requires-python = ">=3.11"
+dependencies = [
+    "crewai>=0.100.0",
+    "crewai-tools>=0.30.0",
+    "claude-agent-sdk>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "rich>=13.0.0",
+    "click>=8.0.0",
+]
+
+[project.optional-dependencies]
+jira = [
+    "atlassian-python-api>=3.41.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
+    "atlassian-python-api>=3.41.0",
+]
+
+[project.scripts]
+bugfix = "src.main:cli"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
