@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from claude_agent_sdk import query, ClaudeAgentOptions
 
 from src.config.settings import get_settings
+from src.observability.tracer import observe
 
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,7 @@ def _run_async_safely(coro):
 
 # ── Core Query Function ──────────────────────────────────────────
 
+@observe(as_type="generation", name="Claude Code SDK Query")
 async def _query_claude_code(
     prompt: str,
     repo_path: str,

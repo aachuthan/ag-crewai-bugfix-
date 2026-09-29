@@ -17,6 +17,7 @@ from rich.panel import Panel
 
 from src.flows.bug_fix_flow import BugFixFlow
 from src.models.state import BugFixState, BugReport, ReviewVerdict
+from src.observability.tracer import init_observability, flush_traces, get_trace_url
 
 
 load_dotenv()
@@ -35,32 +36,36 @@ def _setup_logging(verbose: bool):
     )
 
 
-def _report_results(state: BugFixState):
+def _report_results(state: BugFixState, trace_url: str = None):
     """Print the final results of a bug-fix pipeline run."""
     console.print()
 
     if state.review_verdict == ReviewVerdict.APPROVED:
-        console.print(Panel.fit(
+        panel_content = (
             f"[bold green]✅ Bug Fix Complete![/bold green]\n\n"
             f"[bold]Branch:[/bold] {state.git_branch or 'N/A'}\n"
             f"[bold]Files Changed:[/bold] {', '.join(state.modified_files) or 'N/A'}\n"
             f"[bold]Tests Written:[/bold] {', '.join(state.tests_written) or 'N/A'}\n"
             f"[bold]All Tests Pass:[/bold] {'✅ Yes' if state.tests_passed else '❌ No'}\n"
-            f"[bold]Iterations:[/bold] {state.current_iteration + 1}",
-            title="🎉 Results",
-        ))
+            f"[bold]Iterations:[/bold] {state.current_iteration + 1}"
+        )
+        if trace_url:
+            panel_content += f"\n\n[bold]📊 View Trace:[/bold] [link={trace_url}]{trace_url}[/link]"
+        console.print(Panel.fit(panel_content, title="🎉 Results"))
     else:
         verdict = state.review_verdict.value if state.review_verdict else "N/A"
-        console.print(Panel.fit(
+        panel_content = (
             f"[bold yellow]⚠️ Bug Fix Incomplete[/bold yellow]\n\n"
             f"[bold]Verdict:[/bold] {verdict}\n"
             f"[bold]Iterations Used:[/bold] "
             f"{state.current_iteration}/{state.max_iterations}\n"
             f"[bold]Last Comments:[/bold] "
             f"{(state.review_comments or 'N/A')[:500]}\n"
-            f"[bold]Errors:[/bold] {'; '.join(state.error_log) or 'None'}",
-            title="⚠️ Results",
-        ))
+            f"[bold]Errors:[/bold] {'; '.join(state.error_log) or 'None'}"
+        )
+        if trace_url:
+            panel_content += f"\n\n[bold]📊 View Trace:[/bold] [link={trace_url}]{trace_url}[/link]"
+        console.print(Panel.fit(panel_content, title="⚠️ Results"))
 
     # Print error log if any
     if state.error_log:
@@ -71,6 +76,9 @@ def _report_results(state: BugFixState):
 
 def _run_pipeline(bug_report: BugReport):
     """Create and run the bug-fix flow, then report results."""
+    if init_observability():
+        console.print("[dim ℹ️] Observability enabled. Tracing to Langfuse...[/dim]")
+
     console.print(Panel.fit(
         f"[bold blue]🐛 Bug Fix Pipeline[/bold blue]\n\n"
         f"[bold]Title:[/bold] {bug_report.title}\n"
@@ -82,19 +90,25 @@ def _run_pipeline(bug_report: BugReport):
 
     initial_state = BugFixState(bug_report=bug_report)
     flow = BugFixFlow(state=initial_state)
+    trace_url = ""
 
     try:
         flow.kickoff()
+        trace_url = get_trace_url()
     except KeyboardInterrupt:
         console.print("\n[bold yellow]Pipeline interrupted by user.[/bold yellow]")
-        _report_results(flow.state)
+        trace_url = get_trace_url()
+        _report_results(flow.state, trace_url)
         sys.exit(130)
     except Exception as e:
         console.print(f"\n[bold red]Pipeline crashed: {e}[/bold red]")
-        _report_results(flow.state)
+        trace_url = get_trace_url()
+        _report_results(flow.state, trace_url)
         sys.exit(1)
+    finally:
+        flush_traces()
 
-    _report_results(flow.state)
+    _report_results(flow.state, trace_url)
 
 
 # ── CLI Commands ──────────────────────────────────────────────────

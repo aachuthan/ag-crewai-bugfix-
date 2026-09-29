@@ -15,6 +15,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+observe = [
+    "langfuse>=2.0.0",
+]
 jira = [
     "atlassian-python-api>=3.41.0",
 ]

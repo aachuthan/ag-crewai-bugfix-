@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     jira_email: str = Field(default="", alias="JIRA_EMAIL")
     jira_api_token: str = Field(default="", alias="JIRA_API_TOKEN")
 
+    # Observability (Langfuse)
+    langfuse_public_key: str = Field(default="", alias="LANGFUSE_PUBLIC_KEY")
+    langfuse_secret_key: str = Field(default="", alias="LANGFUSE_SECRET_KEY")
+    langfuse_host: str = Field(default="https://cloud.langfuse.com", alias="LANGFUSE_HOST")
+
     class Config:
         env_file = ".env"
         extra = "ignore"

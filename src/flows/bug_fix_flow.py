@@ -89,8 +89,13 @@ class BugFixFlow(Flow[BugFixState]):
     # ─── Phase 1: Triage ──────────────────────────────────────────
 
     @start()
+    @observe(name="Phase 1: Triage")
     def triage_bug(self):
         """Entry point: classify and triage the bug report."""
+        update_trace_context(
+            name=f"BugFix: {self.state.bug_report.title}",
+            session_id=self.state.bug_report.repository_path
+        )
         logger.info("=" * 60)
         logger.info("🔍 PHASE 1: Bug Triage")
         logger.info("=" * 60)
@@ -140,6 +145,7 @@ class BugFixFlow(Flow[BugFixState]):
     # ─── Phase 2: Investigation ───────────────────────────────────
 
     @listen(triage_bug)
+    @observe(name="Phase 2: Investigation")
     def investigate_bug(self, triage_result: str):
         """Deep investigation to find root cause."""
         logger.info("=" * 60)
@@ -176,6 +182,7 @@ class BugFixFlow(Flow[BugFixState]):
     # ─── Phase 3: Fix Implementation ─────────────────────────────
 
     @listen(investigate_bug)
+    @observe(name="Phase 3: Fix")
     def implement_fix(self, context: str):
         """Implement the actual code fix."""
         return self._do_implement_fix(context)
@@ -237,6 +244,7 @@ class BugFixFlow(Flow[BugFixState]):
     # ─── Phase 4: Testing ─────────────────────────────────────────
 
     @listen(implement_fix)
+    @observe(name="Phase 4: Tests")
     def run_tests(self, fix_result: str):
         """Write regression tests and run the test suite."""
         return self._do_run_tests(fix_result)
@@ -295,6 +303,7 @@ class BugFixFlow(Flow[BugFixState]):
     # ─── Phase 5: Code Review ─────────────────────────────────────
 
     @listen("tests_passed")
+    @observe(name="Phase 5: Code Review")
     def review_fix(self):
         """Code review as quality gate."""
         logger.info("=" * 60)

@@ -15,6 +15,8 @@ from typing import Type
 from crewai.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.observability.tracer import observe
+
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,7 @@ class GitTool(BaseTool):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    @observe(as_type="generation", name="Git Command")
     def _run(self, command: str) -> str:
         # Parse the command string into safe argument list
         try:

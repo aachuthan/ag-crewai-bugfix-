@@ -274,7 +274,40 @@ All settings are in `.env`:
 | `MAX_RETRY_ITERATIONS` | `3` | Max fix→test→review retry cycles |
 | `JIRA_URL` | *(optional)* | Your Jira instance URL |
 | `JIRA_EMAIL` | *(optional)* | Your Jira email |
-| `JIRA_API_TOKEN` | *(optional)* | Your Jira API token |
+| `LANGFUSE_PUBLIC_KEY` | *(optional)* | Langfuse public key |
+| `LANGFUSE_SECRET_KEY` | *(optional)* | Langfuse secret key |
+| `LANGFUSE_HOST` | `https://cloud.langfuse.com` | Langfuse host URL |
+
+---
+
+## Observability & Tracing (Langfuse)
+
+This project has native, zero-friction integration with [Langfuse](https://langfuse.com/) to provide deep observability into the AI's decision-making process. 
+
+### What Gets Traced?
+* **Macro Pipeline (Flow):** See exactly how long the Triage, Investigation, Fix, Test, and Review phases took.
+* **Agent Reasoning (LLM):** Tracks the prompts, responses, token usage, and costs for every underlying LLM call made by the CrewAI agents.
+* **Tool Execution:** Captures the exact prompts sent to Claude Code and the raw commands executed by the Git tool.
+
+### How to Enable
+
+1. Install the observability dependencies:
+   ```bash
+   pip install -e ".[observe]"
+   ```
+2. Add your Langfuse keys to your `.env` file:
+   ```env
+   LANGFUSE_PUBLIC_KEY=pk-lf-...
+   LANGFUSE_SECRET_KEY=sk-lf-...
+   LANGFUSE_HOST=https://cloud.langfuse.com
+   ```
+3. Run the pipeline normally. The CLI will automatically detect the keys, enable tracing, and print a **clickable URL** to the trace at the end of the run:
+   ```text
+   [ℹ️] Observability enabled. Tracing to Langfuse...
+   ...
+   ✅ Bug Fix Complete!
+   📊 View Trace: https://cloud.langfuse.com/trace/12345-abcde
+   ```
 
 ---
 
