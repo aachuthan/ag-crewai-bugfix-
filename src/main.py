@@ -26,6 +26,42 @@ console = Console()
 
 # ── Helpers ───────────────────────────────────────────────────────
 
+def _check_prerequisites():
+    """Verify system requirements before starting the pipeline."""
+    import os
+    import sys
+    import shutil
+    from src.config.settings import get_settings
+    settings = get_settings()
+    
+    # 1. Check for API key
+    if not os.environ.get("ANTHROPIC_API_KEY") and not settings.anthropic_api_key:
+        console.print(
+            "[bold red]Error: ANTHROPIC_API_KEY is missing.[/bold red]\n"
+            "Please set it in your .env file or environment variables."
+        )
+        sys.exit(1)
+            
+    # 2. Check Execution Engine
+    if settings.execution_engine == "opencode":
+        if not shutil.which("opencode"):
+            console.print(
+                "[bold red]Error: 'opencode' command not found.[/bold red]\n"
+                "You have set EXECUTION_ENGINE=opencode, but OpenCode is not installed.\n"
+                "Install it via: curl -fsSL https://opencode.ai/v2/install | bash"
+            )
+            sys.exit(1)
+    else:
+        # Default Claude Code check
+        if not shutil.which("npx"):
+            console.print(
+                "[bold red]Error: 'npx' command not found.[/bold red]\n"
+                "The Claude Code SDK requires Node.js to be installed on your system.\n"
+                "Please install Node.js from https://nodejs.org/"
+            )
+            sys.exit(1)
+
+
 def _setup_logging(verbose: bool):
     """Configure logging — DEBUG if verbose, INFO otherwise."""
     level = logging.DEBUG if verbose else logging.INFO
@@ -122,6 +158,7 @@ def cli(verbose: bool):
     Fix Developer, Test Engineer, Code Reviewer) to autonomously
     diagnose and fix bugs in a repository.
     """
+    _check_prerequisites()
     _setup_logging(verbose)
 
 

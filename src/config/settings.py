@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     langfuse_secret_key: str = Field(default="", alias="LANGFUSE_SECRET_KEY")
     langfuse_host: str = Field(default="https://cloud.langfuse.com", alias="LANGFUSE_HOST")
 
+    # Execution Engine Configuration
+    execution_engine: str = Field(default="claude_code", alias="EXECUTION_ENGINE")
+    opencode_model: str = Field(default="gemini-1.5-pro", alias="OPENCODE_MODEL")
+
     class Config:
         env_file = ".env"
         extra = "ignore"

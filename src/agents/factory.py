@@ -12,6 +12,7 @@ from crewai import Agent, LLM
 
 from src.config.settings import get_settings
 from src.tools.claude_code_tool import ClaudeCodeReadTool, ClaudeCodeEditTool
+from src.tools.opencode_tool import OpenCodeReadTool, OpenCodeEditTool
 from src.tools.git_tool import GitTool
 
 
@@ -28,6 +29,17 @@ def _make_llm(
     if max_tokens:
         kwargs["max_tokens"] = max_tokens
     return LLM(**kwargs)
+
+
+def _get_tools(readonly: bool, repo_path: str):
+    """Dynamically get the correct toolset based on the active execution engine."""
+    engine = get_settings().execution_engine.lower()
+    
+    if engine == "opencode":
+        return [OpenCodeReadTool(repo_path=repo_path)] if readonly else [OpenCodeEditTool(repo_path=repo_path), GitTool(repo_path=repo_path)]
+    else:
+        # Default to claude-code
+        return [ClaudeCodeReadTool(repo_path=repo_path)] if readonly else [ClaudeCodeEditTool(repo_path=repo_path), GitTool(repo_path=repo_path)]
 
 
 # ── Bug Analyst ───────────────────────────────────────────────────
@@ -50,7 +62,7 @@ def create_bug_analyst(repo_path: str) -> Agent:
             "difference between a symptom and a root cause."
         ),
         llm=_make_llm(temperature=0.1),
-        tools=[ClaudeCodeReadTool(repo_path=repo_path)],
+        tools=_get_tools(readonly=True, repo_path=repo_path),
         verbose=True,
         allow_delegation=False,
     )
@@ -81,7 +93,7 @@ def create_code_investigator(repo_path: str) -> Agent:
             thinking={"type": "enabled", "budget_tokens": 8000},
             max_tokens=12000,
         ),
-        tools=[ClaudeCodeReadTool(repo_path=repo_path)],
+        tools=_get_tools(readonly=True, repo_path=repo_path),
         verbose=True,
         allow_delegation=False,
     )
@@ -90,93 +102,65 @@ def create_code_investigator(repo_path: str) -> Agent:
 # ── Fix Developer ────────────────────────────────────────────────
 
 def create_fix_developer(repo_path: str) -> Agent:
-    """Create the Fix Developer agent that implements code fixes.
+    """Create the Fix Developer agent to implement the code fix.
 
-    Tools: code_editor (READ-WRITE) + git_tool
-    Uses extended thinking for precise implementation.
+    Tools: code_editor, git_tool (READ-WRITE)
     """
     return Agent(
         role="Senior Fix Developer",
-        goal=(
-            "Implement a minimal, correct fix for the identified bug. "
-            "Create a feature branch, apply the fix, and produce a clean diff."
-        ),
+        goal="Write the exact code changes needed to fix the bug and commit them.",
         backstory=(
-            "You are a senior software engineer known for clean, minimal fixes. "
-            "You create dedicated branches, write descriptive commit messages, "
-            "and ensure changes are surgical. You have access to code editing "
-            "tools and git operations."
-        ),
-        llm=_make_llm(
-            temperature=0.0,
-            thinking={"type": "enabled", "budget_tokens": 10000},
-            max_tokens=16000,
-        ),
-        tools=[
-            ClaudeCodeEditTool(repo_path=repo_path),
-            GitTool(repo_path=repo_path),
-        ],
-        verbose=True,
-        allow_delegation=False,
-    )
-
-
-# ── Test Engineer ─────────────────────────────────────────────────
-
-def create_test_engineer(repo_path: str) -> Agent:
-    """Create the Test Engineer agent for writing and running tests.
-
-    Tools: code_editor (READ-WRITE, needs to write test files + run tests) + git_tool
-    """
-    return Agent(
-        role="Test Engineer",
-        goal=(
-            "Write regression tests that cover the bug scenario, run the full "
-            "test suite, and report whether all tests pass."
-        ),
-        backstory=(
-            "You are a test automation expert. You write tests that verify "
-            "the fix works and prevent regression. You understand the project's "
-            "testing framework and always run the complete test suite after "
-            "adding new tests."
+            "You are a senior software engineer who writes extremely clean, "
+            "surgical code. You never refactor unrelated code. You make "
+            "minimal, safe, and precise code modifications to resolve issues."
         ),
         llm=_make_llm(temperature=0.1),
-        tools=[
-            ClaudeCodeEditTool(repo_path=repo_path),
-            GitTool(repo_path=repo_path),
-        ],
+        tools=_get_tools(readonly=False, repo_path=repo_path),
         verbose=True,
         allow_delegation=False,
     )
 
 
-# ── Code Reviewer ─────────────────────────────────────────────────
+# ── Test Engineer ────────────────────────────────────────────────
 
-def create_code_reviewer(repo_path: str) -> Agent:
-    """Create the Code Reviewer agent that acts as a quality gate.
+def create_test_engineer(repo_path: str) -> Agent:
+    """Create the Test Engineer agent to write tests and verify the fix.
 
-    Tools: code_reader (READ-ONLY)
-    Uses extended thinking for thorough review.
+    Tools: code_editor, git_tool (READ-WRITE)
     """
     return Agent(
-        role="Senior Code Reviewer",
-        goal=(
-            "Review the proposed fix for correctness, code quality, potential "
-            "regressions, and adherence to project conventions. Provide a "
-            "verdict: approved, needs_changes, or rejected."
-        ),
+        role="Test Automation Engineer",
+        goal="Write regression tests for the bug and verify they pass.",
         backstory=(
-            "You are a principal engineer who reviews code with extreme "
-            "thoroughness. You check for edge cases, thread safety, error "
-            "handling, naming conventions, and performance issues. You are "
-            "constructive but uncompromising on quality."
+            "You are a rigorous QA automation engineer. You excel at finding "
+            "edge cases, understanding existing test frameworks in any language, "
+            "and writing automated tests that ensure bugs never return."
         ),
-        llm=_make_llm(
-            temperature=0.0,
-            thinking={"type": "enabled", "budget_tokens": 8000},
-            max_tokens=12000,
+        llm=_make_llm(temperature=0.1),
+        tools=_get_tools(readonly=False, repo_path=repo_path),
+        verbose=True,
+        allow_delegation=False,
+    )
+
+
+# ── Code Reviewer ────────────────────────────────────────────────
+
+def create_code_reviewer(repo_path: str) -> Agent:
+    """Create the Code Reviewer agent as the final quality gate.
+
+    Tools: code_reader (READ-ONLY)
+    """
+    return Agent(
+        role="Lead Code Reviewer",
+        goal="Review the proposed fix and tests to ensure quality and correctness.",
+        backstory=(
+            "You are a strict but fair Principal Engineer. You review pull "
+            "requests with a fine-toothed comb. Your goal is to "
+            "ensure that code meets quality standards, is fully tested, "
+            "and solves the root problem without regressions."
         ),
-        tools=[ClaudeCodeReadTool(repo_path=repo_path)],
+        llm=_make_llm(temperature=0.0),
+        tools=_get_tools(readonly=True, repo_path=repo_path),
         verbose=True,
         allow_delegation=False,
     )
